@@ -1,0 +1,51 @@
+name: Daily Reel Generator
+
+on:
+  schedule:
+    # 09:00 AM IST = 03:30 UTC
+    - cron: "30 3 * * *"
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+jobs:
+  generate-and-post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout repo ────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install system deps (FFmpeg + ffprobe) ───────────────────────────
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      # ── 4. Install Python deps ───────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ── 5. Run the pipeline ──────────────────────────────────────────────────
+      - name: Generate & upload reel
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEXELS_API_KEY:    ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_TOKEN:     ${{ secrets.YOUTUBE_TOKEN }}
+        run: python main.py
+
+      # ── 6. Upload the final video as a build artifact (optional backup) ──────
+      - name: Save reel artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ github.run_number }}
+          path: output/final_reel.mp4
+          retention-days: 7
