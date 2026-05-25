@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-import anthropic
+import google.generativeai as genai
 import edge_tts
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -23,7 +23,7 @@ from google.oauth2.credentials import Credentials
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 PEXELS_API_KEY    = os.environ["PEXELS_API_KEY"]
 YOUTUBE_TOKEN     = os.environ["YOUTUBE_TOKEN"]         # OAuth2 JSON token string
 
@@ -53,29 +53,20 @@ def get_todays_topic() -> str:
 # ─── STEP 2 — GENERATE SCRIPT ────────────────────────────────────────────────
 
 def generate_script(topic: str) -> str:
-    print("[2/6] Generating script with Claude...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    prompt = f"""You are a scriptwriter for short viral faceless reels about {NICHE}.
-
-Write a {REEL_DURATION}-second voiceover script about:
-"{topic}"
-
+    print("[2/6] Generating script with Gemini...")
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"""You are a scriptwriter for short viral faceless reels about {NICHE}...
+Write a {REEL_DURATION}-second voiceover script about: "{topic}"
 Rules:
 - Start with a SHOCKING hook sentence (no "Did you know")
-- Use short punchy sentences. Pause beats with "..."
+- Short punchy sentences. Pause beats with "..."
 - Build tension then deliver the mind-blowing fact
 - End with one reflective closing line
-- Plain text only. No stage directions, no asterisks, no markdown.
-- Aim for ~110 words (perfect for {REEL_DURATION}s at natural pace)
-
+- Plain text only, ~110 words
 Return ONLY the script text."""
-
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=400,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    script = message.content[0].text.strip()
+    response = model.generate_content(prompt)
+    script = response.text.strip()
     print(f"    Script ({len(script.split())} words): {script[:80]}...")
     return script
 

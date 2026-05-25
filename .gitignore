@@ -1,0 +1,7 @@
+client_secrets.json
+get_youtube_token.py
+output/
+assets/
+*.mp3
+*.mp4
+__pycache__/
