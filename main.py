@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-import google as genai
+from google import genai as google_genai
 import edge_tts
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -54,7 +54,7 @@ def get_todays_topic() -> str:
 
 def generate_script(topic: str) -> str:
     print("[2/6] Generating script with Gemini...")
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    client = google_genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     prompt = f"""You are a scriptwriter for short viral faceless reels about {NICHE}.
 
 Write a {REEL_DURATION}-second voiceover script about:
@@ -71,7 +71,7 @@ Rules:
 Return ONLY the script text."""
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.0-flash-001",
         contents=prompt
     )
     script = response.text.strip()
