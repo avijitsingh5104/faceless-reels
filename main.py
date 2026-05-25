@@ -71,7 +71,7 @@ Rules:
 Return ONLY the script text."""
 
     response = client.models.generate_content(
-        model="antigravity-preview-05-2026",
+        model="gemini-2.0-flash-lite",
         contents=prompt
     )
     script = response.text.strip()
