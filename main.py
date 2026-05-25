@@ -183,7 +183,7 @@ def build_video(clips: list[Path], voiceover: Path, script: str, topic: str) -> 
     audio_dur = get_audio_duration(voiceover)
     clip_dur  = audio_dur / max(len(clips), 1)
 
-    # 1. Scale & crop each clip to 1080x1920 (9:16 portrait), trim to clip_dur
+    # 1. Scale & crop each clip to 1080x1920 portrait
     scaled = []
     for i, clip in enumerate(clips):
         out = ASSETS_DIR / f"scaled_{i}.mp4"
@@ -207,36 +207,36 @@ def build_video(clips: list[Path], voiceover: Path, script: str, topic: str) -> 
     # 3. Get/create lo-fi music
     music = download_lofi_music()
 
-    # 4. Build subtitle drawtext filter (word-by-word fade)
-    lines = wrap_text(script)
-    words_per_sec = len(script.split()) / audio_dur
-    drawtext_filters = []
-    word_idx = 0
-    for line in lines:
-        word_count = len(line.split())
-        t_start = word_idx / words_per_sec
-        t_end   = (word_idx + word_count) / words_per_sec
-        escaped = line.replace("'", "\\'").replace(":", "\\:")
-        drawtext_filters.append(
-            f"drawtext=text='{escaped}'"
-            f":fontcolor=white:fontsize=52:font='Arial Bold'"
-            f":x=(w-text_w)/2:y=h*0.75-text_h/2"
-            f":shadowcolor=black:shadowx=3:shadowy=3"
-            f":enable='between(t,{t_start:.2f},{t_end:.2f})'"
-        )
-        word_idx += word_count
+    # 4. Write subtitles as SRT file
+    srt_path = ASSETS_DIR / "captions.srt"
+    words = script.split()
+    words_per_sec = len(words) / audio_dur
+    srt_lines = []
+    chunk_size = 6
+    chunks = [words[i:i+chunk_size] for i in range(0, len(words), chunk_size)]
+    for idx, chunk in enumerate(chunks):
+        word_start = idx * chunk_size
+        t_start = word_start / words_per_sec
+        t_end = min((word_start + len(chunk)) / words_per_sec, audio_dur)
+        def fmt(s):
+            h = int(s // 3600)
+            m = int((s % 3600) // 60)
+            sec = int(s % 60)
+            ms = int((s - int(s)) * 1000)
+            return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
+        srt_lines.append(f"{idx+1}\n{fmt(t_start)} --> {fmt(t_end)}\n{' '.join(chunk)}\n")
+    srt_path.write_text("\n".join(srt_lines))
 
-    vf = ",".join(drawtext_filters)
-
-    # 5. Final mix: video + captions + voice + music
+    # 5. Final mix: video + subtitles + voice + music
     final_out = OUTPUT_DIR / "final_reel.mp4"
+    subtitle_filter = f"subtitles={str(srt_path).replace(chr(92), '/')}:force_style='FontName=Arial,FontSize=22,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=3,Bold=1,Alignment=2'"
     subprocess.run([
         "ffmpeg",
         "-i", str(concat_out),
         "-i", str(voiceover),
         "-i", str(music),
         "-filter_complex",
-        f"[0:v]{vf}[v];"
+        f"[0:v]{subtitle_filter}[v];"
         f"[1:a]volume=1.0[voice];"
         f"[2:a]volume={MUSIC_VOLUME},aloop=loop=-1:size=44100*120[bg];"
         f"[voice][bg]amix=inputs=2:duration=first[a]",
