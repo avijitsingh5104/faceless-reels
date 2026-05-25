@@ -1,5 +1,6 @@
 client_secrets.json
 get_youtube_token.py
+list_models.py
 output/
 assets/
 *.mp3
