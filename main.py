@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-import google.generativeai as genai
+import google as genai
 import edge_tts
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -54,18 +54,26 @@ def get_todays_topic() -> str:
 
 def generate_script(topic: str) -> str:
     print("[2/6] Generating script with Gemini...")
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = f"""You are a scriptwriter for short viral faceless reels about {NICHE}...
-Write a {REEL_DURATION}-second voiceover script about: "{topic}"
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    prompt = f"""You are a scriptwriter for short viral faceless reels about {NICHE}.
+
+Write a {REEL_DURATION}-second voiceover script about:
+"{topic}"
+
 Rules:
 - Start with a SHOCKING hook sentence (no "Did you know")
-- Short punchy sentences. Pause beats with "..."
+- Use short punchy sentences. Pause beats with "..."
 - Build tension then deliver the mind-blowing fact
 - End with one reflective closing line
-- Plain text only, ~110 words
+- Plain text only. No stage directions, no asterisks, no markdown.
+- Aim for ~110 words (perfect for {REEL_DURATION}s at natural pace)
+
 Return ONLY the script text."""
-    response = model.generate_content(prompt)
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
     script = response.text.strip()
     print(f"    Script ({len(script.split())} words): {script[:80]}...")
     return script
